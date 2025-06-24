@@ -23,23 +23,20 @@ local Players = game:GetService("Players")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
---// Variables
-
 local RequiredDistance, Typing, Running, Animation, ServiceConnections = 2000, false, false, nil, {}
 
---// Script Settings
 
 Environment.Settings = {
 	Enabled = true,
 	TeamCheck = false,
 	AliveCheck = true,
-	WallCheck = false, -- Laggy
-	Sensitivity = 0, -- Animation length (in seconds) before fully locking onto target
-	ThirdPerson = false, -- Uses mousemoverel instead of CFrame to support locking in third person (could be choppy)
-	ThirdPersonSensitivity = 3, -- Boundary: 0.1 - 5
+	WallCheck = false, 
+	Sensitivity = 0, 
+	ThirdPerson = false, 
+	ThirdPersonSensitivity = 3,
 	TriggerKey = "MouseButton2",
 	Toggle = false,
-	LockPart = "NewHead", "Head" -- Body part to lock on
+	LockPart = "NewHead", "Head" 
 }
 
 Environment.FOVSettings = {
@@ -56,7 +53,6 @@ Environment.FOVSettings = {
 
 Environment.FOVCircle = Drawing.new("Circle")
 
---// Functions
 
 local function CancelLock()
 	Environment.Locked = nil
@@ -90,7 +86,6 @@ local function GetClosestPlayer()
 	end
 end
 
---// Typing Check
 
 ServiceConnections.TypingStartedConnection = UserInputService.TextBoxFocused:Connect(function()
 	Typing = true
@@ -99,7 +94,6 @@ end)
 ServiceConnections.TypingEndedConnection = UserInputService.TextBoxFocusReleased:Connect(function()
 	Typing = false
 end)
-
 
 
 local function Load()
@@ -192,7 +186,7 @@ local function Load()
 	end)
 end
 
---// Functions
+
 
 Environment.Functions = {}
 
@@ -224,8 +218,8 @@ function Environment.Functions:ResetSettings()
 		AliveCheck = true,
 		WallCheck = false,
 		Sensitivity = 0.24, 
-		ThirdPerson = false, 
-		ThirdPersonSensitivity = 3, -- Boundary: 0.1 - 5
+		ThirdPerson = false,
+		ThirdPersonSensitivity = 3, 
 		TriggerKey = "MouseButton2",
 		Toggle = false,
 		LockPart = "HumanoidRootPart" 
@@ -249,38 +243,152 @@ end
 Load()
 
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimbotMenu"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game.CoreGui
+local Gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+Gui.Name = "AimbotUI"
+Gui.ResetOnSpawn = false
 
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Parent = ScreenGui
-StatusLabel.Size = UDim2.new(0, 140, 0, 28)
-StatusLabel.Position = UDim2.new(0, 10, 0, 10)
-StatusLabel.BackgroundTransparency = 0.2
-StatusLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-StatusLabel.BorderSizePixel = 0
-StatusLabel.TextColor3 = Color3.new(1, 1, 1)
-StatusLabel.TextSize = 14
-StatusLabel.Font = Enum.Font.SourceSansBold
-StatusLabel.Text = "[Aimbot: ON]"
-local function UpdateStatusLabel()
-	StatusLabel.Text = "[Aimbot: " .. (Environment.Settings.Enabled and "ON" or "OFF") .. "]"
-	StatusLabel.TextColor3 = Environment.Settings.Enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+
+local Frame = Instance.new("Frame", Gui)
+Frame.Size = UDim2.new(0, 240, 0, 250)
+Frame.Position = UDim2.new(0, 15, 0, 100)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Visible = true
+
+
+local Title = Instance.new("TextLabel", Frame)
+Title.Text = "⚙ Aimbot Settings"
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 16
+Title.Font = Enum.Font.SourceSansBold
+
+
+local function CreateToggle(name, default, callback, y)
+	local toggle = Instance.new("TextButton", Frame)
+	toggle.Size = UDim2.new(1, -10, 0, 24)
+	toggle.Position = UDim2.new(0, 5, 0, y)
+	toggle.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	toggle.TextColor3 = Color3.new(1, 1, 1)
+	toggle.TextSize = 14
+	toggle.Font = Enum.Font.SourceSans
+	toggle.Text = name .. ": " .. (default and "ON" or "OFF")
+
+	local state = default
+	toggle.MouseButton1Click:Connect(function()
+		state = not state
+		toggle.Text = name .. ": " .. (state and "ON" or "OFF")
+		callback(state)
+	end)
+
+	return y + 26
 end
 
--- Listen for toggle key (RightShift)
+local function CreateSlider(name, min, max, default, callback, y)
+	local label = Instance.new("TextLabel", Frame)
+	label.Size = UDim2.new(1, -10, 0, 20)
+	label.Position = UDim2.new(0, 5, 0, y)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextSize = 14
+	label.Font = Enum.Font.SourceSans
+	label.Text = name .. ": " .. tostring(default)
+
+	local slider = Instance.new("TextButton", Frame)
+	slider.Size = UDim2.new(1, -10, 0, 20)
+	slider.Position = UDim2.new(0, 5, 0, y + 20)
+	slider.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	slider.Text = ""
+	slider.AutoButtonColor = false
+
+	local dragging = false
+	local fill = Instance.new("Frame", slider)
+	fill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+	fill.BorderSizePixel = 0
+
+	local function update(input)
+		local x = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+		fill.Size = UDim2.new(x, 0, 1, 0)
+		local value = math.floor((min + (max - min) * x) * 100) / 100
+		label.Text = name .. ": " .. tostring(value)
+		callback(value)
+	end
+
+	slider.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+	slider.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+	game:GetService("UserInputService").InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			update(input)
+		end
+	end)
+
+	update({ Position = Vector2.new(slider.AbsolutePosition.X + slider.AbsoluteSize.X * ((default - min) / (max - min)), 0) })
+
+	return y + 48
+end
+
+
+local function CreateDropdown(name, options, default, callback, y)
+	local dropdown = Instance.new("TextButton", Frame)
+	dropdown.Size = UDim2.new(1, -10, 0, 24)
+	dropdown.Position = UDim2.new(0, 5, 0, y)
+	dropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	dropdown.TextColor3 = Color3.new(1, 1, 1)
+	dropdown.TextSize = 14
+	dropdown.Font = Enum.Font.SourceSans
+	dropdown.Text = name .. ": " .. default
+
+	local index = table.find(options, default) or 1
+	dropdown.MouseButton1Click:Connect(function()
+		index = index + 1
+		if index > #options then index = 1 end
+		dropdown.Text = name .. ": " .. options[index]
+		callback(options[index])
+	end)
+
+	return y + 26
+end
+
 UserInputService.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if input.KeyCode == Enum.KeyCode.RightShift then
-		Environment.Settings.Enabled = not Environment.Settings.Enabled
-		print("[Aimbot] Menu Toggled " .. (Environment.Settings.Enabled and "ON" or "OFF"))
-		UpdateStatusLabel()
+	if not gp and input.KeyCode == Enum.KeyCode.RightShift then
+		Frame.Visible = not Frame.Visible
 	end
 end)
 
--- Keep label updated if aimbot is toggled externally
-RunService.RenderStepped:Connect(function()
-	UpdateStatusLabel()
-end)
+
+local y = 32
+y = CreateToggle("Enable Aimbot", Environment.Settings.Enabled, function(v)
+	Environment.Settings.Enabled = v
+end, y)
+
+y = CreateToggle("Team Check", Environment.Settings.TeamCheck, function(v)
+	Environment.Settings.TeamCheck = v
+end, y)
+
+y = CreateToggle("Wall Check", Environment.Settings.WallCheck, function(v)
+	Environment.Settings.WallCheck = v
+end, y)
+
+y = CreateSlider("FOV", 20, 300, Environment.FOVSettings.Amount, function(v)
+	Environment.FOVSettings.Amount = v
+end, y)
+
+y = CreateSlider("Sensitivity", 0, 1, Environment.Settings.Sensitivity, function(v)
+	Environment.Settings.Sensitivity = v
+end, y)
+
+y = CreateDropdown("Lock Part", { "Head", "HumanoidRootPart", "UpperTorso", "LowerTorso" }, Environment.Settings.LockPart, function(v)
+	Environment.Settings.LockPart = v
+end, y)
+
+print("[Aimbot Menu] Loaded with interactive GUI.")
